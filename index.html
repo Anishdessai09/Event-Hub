@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>EventHub - Intro (redirect on scroll)</title>
+
+  <style>
+/* --- RESET & BASIC STYLES --- */
+* { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+html,body { height:100%; }
+body {
+  background-color: #050511; /* Dark Deep Blue */
+  color: white;
+  overflow: hidden; /* Prevents scrollbar until we want it */
+}
+
+/* --- INTRO LAYER (The Splash Screen) --- */
+#intro-layer {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100vh;
+  z-index: 1000;
+  background-color: #050511;
+  transition: transform 0.8s cubic-bezier(0.77, 0, 0.175, 1), opacity 0.6s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+/* Class to add via JS to animate the page away */
+#intro-layer.slide-out {
+  transform: translateY(-100%);
+  opacity: 0;
+}
+
+/* --- NAVBAR --- */
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 40px;
+  position: absolute;
+  width: 100%;
+  z-index: 10;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);
+}
+
+.logo { font-size: 1.5rem; font-weight: bold; color: #fff; }
+.menu a { color: #ccc; text-decoration: none; margin: 0 15px; font-size: 0.9rem; transition: color 0.3s; }
+.menu a:hover { color: #8b5cf6; }
+.search-bar { display: flex; gap: 10px; }
+.search-bar input { background: rgba(255,255,255,0.1); border: none; padding: 8px 15px; border-radius: 20px; color: white; }
+.search-bar button { background-color: #6246ea; color: white; border: none; padding: 8px 20px; border-radius: 20px; cursor: pointer; }
+
+/* --- HERO SLIDER --- */
+.hero-slider {
+  position: relative;
+  flex-grow: 1;
+  width: 100%;
+  overflow: hidden;
+}
+.hero-slide {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  opacity: 0;
+  transition: opacity 1s ease-in-out;
+  background: #000;
+  display:flex; align-items:flex-end;
+}
+.hero-slide.active { opacity: 1; }
+.hero-slide img { width:100%; height:100%; object-fit:cover; opacity:0.7; }
+
+/* slide text */
+.slide-text {
+  position: absolute;
+  bottom: 120px;
+  left: 50px;
+  max-width: 600px;
+  z-index: 5;
+}
+.slide-text h2 { font-size: 3.5rem; margin-bottom: 10px; text-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+.slide-text p { font-size: 1.2rem; opacity: 0.9; }
+
+/* --- BUTTONS & CTA --- */
+.prev-btn, .next-btn {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  background: rgba(255,255,255,0.1);
+  border: none; color: white; font-size: 2rem; padding: 15px; cursor: pointer; border-radius: 50%;
+  transition: background 0.3s; z-index:6;
+}
+.prev-btn:hover, .next-btn:hover { background: rgba(255,255,255,0.3); }
+.prev-btn { left: 20px; } .next-btn { right: 20px; }
+.cta-section { position: absolute; bottom: 40px; width: 100%; text-align: center; z-index: 20; }
+.btn-pulse {
+  background: linear-gradient(45deg, #6246ea, #8b5cf6);
+  border: none; padding: 15px 40px; color: white; font-size: 1.1rem; font-weight: bold; border-radius: 30px; cursor: pointer;
+  box-shadow: 0 0 20px rgba(98,70,234,0.5); transition: transform .2s;
+}
+.btn-pulse:hover { transform: scale(1.05); }
+
+/* --- MAIN CONTENT (HIDDEN INITIALLY) --- */
+#main-content {
+  padding: 100px 40px;
+  min-height: 100vh;
+  background-color: #0b0b1e;
+  opacity: 0;
+  transform: translateY(50px);
+  transition: all 1s ease;
+  position: relative;
+  z-index: 10;
+}
+
+/* Animation state when revealed */
+#main-content.visible { opacity: 1; transform: translateY(0); }
+
+/* sticky nav inside main */
+.sticky-nav {
+  position: fixed; top: 0; left: 0; width: 100%; padding: 20px 40px;
+  background: rgba(11,11,30,0.95); display:flex; justify-content:space-between; z-index:900; border-bottom: 1px solid #222;
+}
+
+/* grid & cards */
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap:20px; margin-top:30px; }
+.card { background: #1a1a2e; border-radius:15px; overflow:hidden; }
+.card-img { height:150px; background-size:cover; background-position:center; }
+.card-info { padding:20px; }
+.card h3 { margin-bottom:5px; color: #8b5cf6; }
+.card p { color: #aaa; font-size:0.9rem; }
+
+/* small responsive tweaks */
+@media (max-width:900px) {
+  .slide-text h2 { font-size: 2rem; }
+  .slide-text { bottom: 80px; left: 20px; max-width: 70%; }
+}
+  </style>
+</head>
+<body>
+
+  <!-- INTRO / SPLASH -->
+  <div id="intro-layer" aria-hidden="false">
+    <header class="navbar">
+      <div class="logo">🎟️ EventHub</div>
+      <nav class="menu">
+        <a href="#">All</a><a href="#">Music</a><a href="#">Tech</a><a href="#">Workshop</a>
+      </nav>
+      <div class="search-bar">
+        <input type="text" placeholder="Search events..." aria-label="Search events">
+        <button>Search</button>
+      </div>
+    </header>
+
+    <section class="hero-slider" aria-roledescription="carousel">
+      <div class="hero-slide active" data-index="0">
+        <img src="https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?auto=format&fit=crop&w=1600&q=60" alt="Goa Music Festival">
+        <div class="slide-text">
+          <span class="tag" style="background:rgba(255,255,255,0.08);padding:.25rem .5rem;border-radius:6px;font-size:.9rem">Featured</span>
+          <h2>Goa Music Festival 2025</h2>
+          <p>🕒 Feb 18 | 📍 Vagator Beach, North Goa</p>
+        </div>
+      </div>
+
+      <div class="hero-slide" data-index="1">
+        <img src="https://images.unsplash.com/photo-1531058020387-3be344556be6?auto=format&fit=crop&w=1600&q=60" alt="Tech Conference">
+        <div class="slide-text">
+          <span class="tag" style="background:rgba(255,255,255,0.08);padding:.25rem .5rem;border-radius:6px;font-size:.9rem">Trending</span>
+          <h2>Future Tech Conference</h2>
+          <p>🕒 Mar 02 | 📍 Bangalore Convention Center</p>
+        </div>
+      </div>
+
+      <div class="hero-slide" data-index="2">
+        <img src="https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=1600&q=60" alt="Art & Culture">
+        <div class="slide-text">
+          <span class="tag" style="background:rgba(255,255,255,0.08);padding:.25rem .5rem;border-radius:6px;font-size:.9rem">Cultural</span>
+          <h2>Art & Culture Carnival</h2>
+          <p>🕒 Mar 15 | 📍 Kala Academy, Panaji</p>
+        </div>
+      </div>
+
+      <button class="prev-btn" aria-label="Previous slide" onclick="changeSlide(-1)">‹</button>
+      <button class="next-btn" aria-label="Next slide" onclick="changeSlide(1)">›</button>
+    </section>
+
+    <section class="cta-section">
+      <button id="explore-btn" class="btn-pulse" aria-label="Explore Events">Explore Events ↓</button>
+    </section>
+  </div>
+
+  <!-- MAIN CONTENT (revealed) -->
+  <div id="main-content" aria-hidden="true">
+    <nav class="sticky-nav">
+      <div class="logo">🎟️ EventHub</div>
+      <div class="user-controls">Search | Profile</div>
+    </nav>
+
+    <div class="container">
+      <h1 style="color:#fff">Trending Near You</h1>
+      <div class="grid" style="margin-top:20px">
+        <div class="card">
+          <div class="card-img" style="background-image:url('https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=1200&q=60')"></div>
+          <div class="card-info"><h3>Neon Nights DJ</h3><p>Tonight • 8:00 PM</p></div>
+        </div>
+        <div class="card">
+          <div class="card-img" style="background-image:url('https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?auto=format&fit=crop&w=1200&q=60')"></div>
+          <div class="card-info"><h3>Food Truck Fiesta</h3><p>Tomorrow • 11:00 AM</p></div>
+        </div>
+        <div class="card">
+          <div class="card-img" style="background-image:url('https://images.unsplash.com/photo-1475721027760-f75b137d9866?auto=format&fit=crop&w=1200&q=60')"></div>
+          <div class="card-info"><h3>Startup Meetup</h3><p>Saturday • 9:00 AM</p></div>
+        </div>
+      </div>
+
+      <button id="back-to-top" style="margin-top:50px;padding:10px 14px;border-radius:8px;border:none;background:rgba(255,255,255,0.06);color:#fff;cursor:pointer">↑ Back to Intro</button>
+    </div>
+  </div>
+
+  <script>
+/* =========================
+   JS: Slider + Transition + redirect to home.html
+   ========================= */
+
+(function() {
+  /* ---------- Slider ---------- */
+  const slides = Array.from(document.querySelectorAll('.hero-slide'));
+  let currentSlide = 0;
+  let slideInterval = null;
+  const SLIDE_DELAY = 5000;
+
+  function showSlide(idx) {
+    slides.forEach((s,i) => s.classList.toggle('active', i === idx));
+    currentSlide = idx;
+  }
+
+  function changeSlide(direction = 1) {
+    const next = (currentSlide + direction + slides.length) % slides.length;
+    showSlide(next);
+    resetSlideTimer();
+  }
+  window.changeSlide = changeSlide;
+
+  function resetSlideTimer() {
+    if (slideInterval) clearInterval(slideInterval);
+    slideInterval = setInterval(() => changeSlide(1), SLIDE_DELAY);
+  }
+
+  if (slides.length) { showSlide(0); resetSlideTimer(); }
+
+  function pauseSlider() { if (slideInterval) { clearInterval(slideInterval); slideInterval = null; } }
+  function resumeSlider() { if (!slideInterval) resetSlideTimer(); }
+
+  /* ---------- Transition & redirect ---------- */
+  const intro = document.getElementById('intro-layer');
+  const main = document.getElementById('main-content');
+  const exploreBtn = document.getElementById('explore-btn');
+  const backBtn = document.getElementById('back-to-top');
+
+  let transitioned = false;
+  let busy = false;
+
+  // Set initial states to match CSS
+  document.body.style.overflow = document.body.style.overflow || 'hidden';
+  main.classList.remove('visible');
+  intro.classList.remove('slide-out');
+
+  // Where to redirect after transition
+  const REDIRECT_TO = 'home.html';
+
+  function doRedirect() {
+    // small safety: ensure redirect target exists in same folder; if not user will see 404 in browser
+    window.location.href = REDIRECT_TO;
+  }
+
+  function enterAndRedirect() {
+    if (!intro || !main || transitioned || busy) return;
+    busy = true;
+    pauseSlider();
+
+    // Play slide-out animation
+    intro.classList.add('slide-out');
+
+    // Set aria-hidden attributes
+    intro.setAttribute('aria-hidden','true');
+
+    // Wait until animation mostly completes, reveal main briefly then redirect
+    const TRANS_MS = 800; // match CSS transition of .slide-out (0.8s)
+    // Show the main a bit earlier so transition feels smooth (optional)
+    setTimeout(() => {
+      main.classList.add('visible');
+      main.setAttribute('aria-hidden','false');
+      document.body.style.overflow = 'auto';
+    }, 280);
+
+    // Final redirect after the animation ends
+    setTimeout(() => {
+      // redirect now
+      doRedirect();
+    }, TRANS_MS + 60); // small buffer after visual animation
+  }
+
+  function returnToIntro() {
+    if (!intro || !main || busy) return;
+    busy = true;
+
+    // hide main
+    main.classList.remove('visible');
+    main.setAttribute('aria-hidden','true');
+
+    // lock scroll
+    document.body.style.overflow = 'hidden';
+
+    setTimeout(() => {
+      intro.classList.remove('slide-out');
+      intro.setAttribute('aria-hidden','false');
+
+      // end
+      setTimeout(() => {
+        busy = false;
+        transitioned = false;
+        resumeSlider();
+        window.scrollTo(0,0);
+      }, 500);
+    }, 260);
+  }
+
+  /* ---------- Input handlers ---------- */
+  let wheelAccum = 0, wheelTimer = null;
+  const WHEEL_THRESHOLD = 80;
+
+  function onWheel(e) {
+    if (transitioned || busy) return;
+    // only care about scroll-down gestures
+    if (e.deltaY <= 0) return;
+    wheelAccum += e.deltaY;
+    clearTimeout(wheelTimer);
+    wheelTimer = setTimeout(() => wheelAccum = 0, 250);
+    if (wheelAccum > WHEEL_THRESHOLD) {
+      enterAndRedirect();
+      wheelAccum = 0;
+    }
+  }
+  window.addEventListener('wheel', onWheel, { passive: true });
+
+  // touch swipe up
+  let touchStartY = null;
+  window.addEventListener('touchstart', (e) => { touchStartY = e.touches?.[0]?.clientY ?? null; }, { passive:true });
+  window.addEventListener('touchend', (e) => {
+    if (transitioned || busy || touchStartY === null) { touchStartY = null; return; }
+    const endY = e.changedTouches?.[0]?.clientY ?? null;
+    if (endY === null) { touchStartY = null; return; }
+    const dy = touchStartY - endY;
+    const SWIPE_THRESHOLD = 80;
+    if (dy > SWIPE_THRESHOLD) enterAndRedirect();
+    touchStartY = null;
+  }, { passive:true });
+
+  // keyboard
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowDown' && !transitioned) enterAndRedirect();
+    if (e.key === 'ArrowUp' && transitioned) returnToIntro();
+    if (e.key === 'ArrowRight') changeSlide(1);
+    if (e.key === 'ArrowLeft') changeSlide(-1);
+  });
+
+  // Buttons
+  if (exploreBtn) exploreBtn.addEventListener('click', (ev) => { ev.preventDefault(); enterAndRedirect(); });
+  if (backBtn) backBtn.addEventListener('click', (ev) => { ev.preventDefault(); returnToIntro(); });
+
+  // optional: clicking logo inside main returns to intro (no redirect)
+  const mainLogo = document.querySelector('#main-content .logo');
+  if (mainLogo) mainLogo.addEventListener('click', returnToIntro);
+
+  // Expose to console for manual testing
+  window._enterAndRedirect = enterAndRedirect;
+  window._returnToIntro = returnToIntro;
+
+})();
+  </script>
+</body>
+</html>
